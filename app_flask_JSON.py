@@ -1,31 +1,9 @@
-from flask import Flask, jsonify, request
-import sqlite3
+from flask import Flask, jsonify
 from archivos import list_of_dbs
 from querys_db import dict_of_tables
 from create_JSON import table_to_dict
 
 app = Flask(__name__)
-
-#####################
-# Conectar a la base de datos SQLite
-def obtener_conexion(file="rtr_db.db"):
-    path = f"database/{file}"
-    #print (path)
-    return sqlite3.connect(path)
-    #return sqlite3.connect('database/rtr_db.db')
-
-def obtener_basesdedatos():
-    return list_of_dbs()
-    
-# Obtener todas las tablas de la base de datos
-def obtener_tablas():
-    conexion = obtener_conexion()
-    cursor = conexion.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tablas = cursor.fetchall()
-    conexion.close()
-    return [tabla[0] for tabla in tablas]
-
 
 
 #############

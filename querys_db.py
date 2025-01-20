@@ -19,24 +19,28 @@ def read_all_rows(tabla):
     #print (show_table_data(datos))
     return datos
 
+# Conectar a la base de datos SQLite
+def obtener_conexion(file="rtr_db.db"):
+    path = f"database/{file}"
+    #print (path)
+    return sql.connect(path)
+    #return sqlite3.connect('database/rtr_db.db')
 
 
-
-
-#Función para obtener lista de tablas en las BD
-def list_of_tables(path_db = "database/rtr_db.db"):
-    print("Esta es la lista de las tablas en la BD")
-    conn = sql.connect(path_db)
+    
+# Obtener todas las tablas de la base de datos
+def obtener_tablas(file="rtr_db.db"):
+    conn = obtener_conexion(file)
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = cursor.fetchall()
-    tables = [i for family in tables for i in family]
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tablas = cursor.fetchall()
     conn.close()
+    return [tabla[0] for tabla in tablas] #Lista []
 
-    return tables #Lista []
 
-def dict_of_tables(path_db = "database/rtr_db.db"):
-    table_lst = list_of_tables(path_db)
+
+def dict_of_tables(file="rtr_db.db"):
+    table_lst = obtener_tablas(file)
     data = {}
     data["Tablas"] = []
     for index in range(len(table_lst)):
@@ -119,7 +123,7 @@ def check_if_db_exists(db_directory = "database/rtr_db.db"):
 
 #Funcion para saber si la BD esstá vacía
 def check_if_empty_db(db_directory = "database/rtr_db.db"):
-	if list_of_tables(db_directory) == []:
+	if obtener_tablas(db_directory) == []:
 		print ("Base de datos vacía")
 	else:
 		print ("Base de datos llena")
