@@ -1,6 +1,6 @@
 from flask import Flask, jsonify
 from archivos import list_of_dbs
-from querys_db import dict_of_tables
+from querys_db import dict_of_tables, dict_of_tables_items
 from create_JSON import table_to_dict
 
 app = Flask(__name__)
@@ -12,7 +12,7 @@ app = Flask(__name__)
 @app.route('/')
 def index():
     return ''' "Base Datos RTR" 
-    /tabla --> Listado de tablas
+    /tabla --> Listado de tablas 
     /tabla/"tabla" --> Datos de la tabla seleccionada
     '''
 
@@ -24,7 +24,14 @@ def mostrar_tabla(table_id):
 @app.route('/tabla', methods=['GET'])
 def lista_tabla():
     response = dict_of_tables()
-    print(response)
+    #print(response)
+    return jsonify(response)
+    #return "Listado de Tablas"
+
+@app.route('/db', methods=['GET'])
+def lista_tabla_items():
+    response = dict_of_tables_items()
+    #print(response)
     return jsonify(response)
     #return "Listado de Tablas"
 

@@ -18,8 +18,9 @@ def read_all_rows(tabla):
     conn.close()    
     #print (show_table_data(datos))
     return datos
-
+# print (read_all_rows("Coches"))
 # Conectar a la base de datos SQLite
+
 def obtener_conexion(file="rtr_db.db"):
     path = f"database/{file}"
     #print (path)
@@ -47,6 +48,18 @@ def dict_of_tables(file="rtr_db.db"):
         #print(index)
         data["Tablas"].append({
 		    index+1:table_lst[index]
+		    })
+    #print(data)
+    return data #Dict {}
+
+def dict_of_tables_items(file="rtr_db.db"):
+    table_lst = obtener_tablas(file)
+    data = {}
+    data["Tablas"] = []
+    for index in range(len(table_lst)):
+        #print(index)
+        data["Tablas"].append({
+		    table_lst[index]:read_all_rows(table_lst[index])
 		    })
     #print(data)
     return data #Dict {}
