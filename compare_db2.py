@@ -1,5 +1,5 @@
 import sqlite3
-from querys_db import obtener_tablas
+from querys_db import list_of_tables
 
 # Función para obtener los precios de los productos de una base de datos
 def obtener_precios(db_path,tabla="Coches"):
@@ -45,8 +45,8 @@ def comparar_precios(db1_path, db2_path,lista="Coches"):
 
 
 # Rutas de las dos bases de datos SQLite
-db1_path = 'database/rtr_db3.db'
-db2_path = 'database/rtr_db4.db'
+db1_path = 'database/rtr_db2.db'
+db2_path = 'database/rtr_db3.db'
 
 # Comparar precios entre las dos bases de datos de una tabla
 def compare_table():    
@@ -54,7 +54,7 @@ def compare_table():
 
 # Comparar precios de todas las tablas de la BD
 def compare_all():
-    categorias = obtener_tablas()
+    categorias = list_of_tables()
     for tabla in categorias:
         comparar_precios(db1_path, db2_path,tabla)
 	

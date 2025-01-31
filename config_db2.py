@@ -2,16 +2,17 @@ import sqlite3 as sql
 import datetime
 from scrap_url import *
 
+path = "database/compare.db"
 
 def create_db():
-    conn = sql.connect("database/rtr_db4.db")
+    conn = sql.connect(path)
     conn.commit ()
     conn.close()
 
 # Crea tablas en funcion de una lista dada con ID de ARTICULO y DATESTAMP ojo detect_types en SQLITE
 def create_tables (nombres_tablas):
     for i in nombres_tablas:
-        conn = sql.connect("database/rtr_db4.db",
+        conn = sql.connect(path,
                              detect_types=sql.PARSE_DECLTYPES |
                              sql.PARSE_COLNAMES)
         cursor = conn.cursor()
@@ -23,7 +24,7 @@ def create_tables (nombres_tablas):
 # Introduce list() de datos en la tabla dada y TIMESTAMP
 def insert_family_data_in_table(table, item_list):
     actual_date = datetime.datetime.now()
-    conn = sql.connect("database/rtr_db4.db", detect_types=sql.PARSE_DECLTYPES |sql.PARSE_COLNAMES)
+    conn = sql.connect(path, detect_types=sql.PARSE_DECLTYPES |sql.PARSE_COLNAMES)
     cursor = conn.cursor()
     instruccion = f"INSERT INTO {table} VALUES (NULL,?, ?,'{actual_date}')"
     cursor.executemany(instruccion, item_list)
