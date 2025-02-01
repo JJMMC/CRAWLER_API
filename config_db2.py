@@ -4,53 +4,47 @@ from scrap_url import *
 
 path = "database/compare.db"
 
-def create_db():
-    conn = sql.connect(path)
-    conn.commit ()
-    conn.close()
 
-# Crea tablas en funcion de una lista dada con ID de ARTICULO y DATESTAMP ojo detect_types en SQLITE
-def create_tables (nombres_tablas):
-    for i in nombres_tablas:
-        conn = sql.connect(path,
-                             detect_types=sql.PARSE_DECLTYPES |
-                             sql.PARSE_COLNAMES)
-        cursor = conn.cursor()
-        instruccion = f"CREATE TABLE IF NOT EXISTS {i} (id_it INTEGER NOT NULL PRIMARY KEY, nombre_it TEXT, precio_it REAL, date TIMESTAMP)"
-        cursor.execute(instruccion)
-        conn.commit()
-        conn.close()
+def create_tables ():
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''
+        CREATE TABLE IF NOT EXISTS rtr (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            categoria TEXT NOT NULL,
+            articulo TEXT NOT NULL,
+            precio REAL, 
+            date TIMESTAMP
+        );
+        '''
+        cursor.execute(instruction)
+        connection.commit()
+        print("Tabla -rtr- creada correctamente")
 
-# Introduce list() de datos en la tabla dada y TIMESTAMP
-def insert_family_data_in_table(table, item_list):
-    actual_date = datetime.datetime.now()
-    conn = sql.connect(path, detect_types=sql.PARSE_DECLTYPES |sql.PARSE_COLNAMES)
-    cursor = conn.cursor()
-    instruccion = f"INSERT INTO {table} VALUES (NULL,?, ?,'{actual_date}')"
-    cursor.executemany(instruccion, item_list)
-    conn.commit()
-    conn.close()
 
-# Insert all data in tables
-def insert_all ():    
+def insert_in_table(table='rtr'):
     categorias_y_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
     for i in categorias_y_urls:
         print(i)
-
-    #Accedemos a las pág child de las urls
+    
     for i in categorias_y_urls:
         urls = (urls_in_categoria(i[1]))
         for url in urls:
             print (url)
-            data = get_items_price(url)
-            insert_family_data_in_table (i[0],data)
+            data = get_items_price(url) #-> Lista de tuplas
+            print (data)
 
-#Rebuild_db_with_tables ()
-def rebuild_db_with_tables ():
-    create_db()
-    categorias = [i[2] for i in request_categorias_and_main_urls()]
-    create_tables(categorias)
-    insert_all()
+    #Creamos la lista de tuplas final para el QUERY tuple(cat,item,)
+
+    # with sql.connect(path) as connection:
+    #     actual_date = datetime.datetime.now()
+    #     cursor = connection.cursor()
+    #     instruction = '''
+    #     INSERT INTO {table} VALUES () 
+    #     '''
+
+insert_in_table()
+
 
 
 
