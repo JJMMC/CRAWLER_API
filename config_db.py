@@ -12,8 +12,8 @@ def create_tables ():
         instruction = '''
         CREATE TABLE precios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        articulo TEXT NOT NULL,
         categoria TEXT NOT NULL,
+        articulo TEXT NOT NULL,
         precio REAL NOT NULL,
         fecha DATETIME DEFAULT CURRENT_TIMESTAMP
         );

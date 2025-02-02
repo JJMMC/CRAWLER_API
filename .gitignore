@@ -1,3 +1,4 @@
 **/.DS_Store
 **/.venv
 **/__pycache__
+**/recover_db.py
