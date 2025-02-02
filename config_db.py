@@ -3,53 +3,62 @@ import datetime
 from scrap_url import *
 
 
-def create_db():
-    conn = sql.connect("database/rtr_db4.db")
-    conn.commit ()
-    conn.close()
+path = "database/rtr_crawler_db.db"
 
-# Crea tablas en funcion de una lista dada con ID de ARTICULO y DATESTAMP ojo detect_types en SQLITE
-def create_tables (nombres_tablas):
-    for i in nombres_tablas:
-        conn = sql.connect("database/rtr_db4.db",
-                             detect_types=sql.PARSE_DECLTYPES |
-                             sql.PARSE_COLNAMES)
-        cursor = conn.cursor()
-        instruccion = f"CREATE TABLE IF NOT EXISTS {i} (id_it INTEGER NOT NULL PRIMARY KEY, nombre_it TEXT, precio_it REAL, date TIMESTAMP)"
-        cursor.execute(instruccion)
-        conn.commit()
-        conn.close()
 
-# Introduce list() de datos en la tabla dada y TIMESTAMP
-def insert_family_data_in_table(table, item_list):
-    actual_date = datetime.datetime.now()
-    conn = sql.connect("database/rtr_db4.db", detect_types=sql.PARSE_DECLTYPES |sql.PARSE_COLNAMES)
-    cursor = conn.cursor()
-    instruccion = f"INSERT INTO {table} VALUES (NULL,?, ?,'{actual_date}')"
-    cursor.executemany(instruccion, item_list)
-    conn.commit()
-    conn.close()
+def create_tables ():
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''
+        CREATE TABLE precios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        articulo TEXT NOT NULL,
+        categoria TEXT NOT NULL,
+        precio REAL NOT NULL,
+        fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        '''
+        cursor.execute(instruction)
+        connection.commit()
+        print("Tabla -precios- creada correctamente")
 
-# Insert all data in tables
-def insert_all ():    
-    categorias_y_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
-    for i in categorias_y_urls:
-        print(i)
+def insert_in_table(table,item_list):
+    with sql.connect(path) as connection:
+        actual_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        cursor = connection.cursor()
+        instruccion = f"INSERT INTO {table} VALUES (NULL,?, ?, ?,'{actual_date}')"
+        cursor.executemany(instruccion, item_list)
+        connection.commit()
 
-    #Accedemos a las pág child de las urls
-    for i in categorias_y_urls:
-        urls = (urls_in_categoria(i[1]))
-        for url in urls:
+#Request data from all categories and insert them in DB
+def request_all_and_insert(table='precios'):
+    categories_and_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
+    for main_urls in categories_and_urls:         
+        child_urls = find_child_urls(main_urls[1]) #List    
+        for url in child_urls:
+                print (url)
+                item_list = get_items_price(url)
+                insert_in_table(table,item_list)
+
+def request_category_and_insert(cat=0,table='precios'):
+    categories_and_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
+    main_urls = categories_and_urls[cat]
+    child_urls = find_child_urls(main_urls[1]) #List    
+    for url in child_urls:
             print (url)
-            data = get_items_price(url)
-            insert_family_data_in_table (i[0],data)
+            item_list = get_items_price(url)
+            #insert_in_table(table,item_list)
+            print(item_list[0])
+            #print("")
+    
+
+
 
 #Rebuild_db_with_tables ()
 def rebuild_db_with_tables ():
-    create_db()
-    categorias = [i[2] for i in request_categorias_and_main_urls()]
-    create_tables(categorias)
-    insert_all()
+    create_tables()
+    request_all_and_insert()
+
 
 
 
