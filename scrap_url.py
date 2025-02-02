@@ -26,7 +26,6 @@ def request_categorias_and_main_urls(url = "https://www.rtrvalladolid.es/87-craw
 	final_zip = zip(categorias,main_urls,categorias_corregidas)
 	return final_zip
 
-
 # Función que dada la main url de la familia retorna list() de las url que descuelgan de ella para extraer los datos
 def find_child_urls(url):
 	for i in range (1,10):
@@ -44,7 +43,6 @@ def find_child_urls(url):
 		
 	#Retorna list con urls de la catergoría YIELD
 
-
 # Damos formato al precio para dejarlo como queremos	
 def formating_price(price_list):
 	formated_price = []
@@ -56,7 +54,6 @@ def formating_price(price_list):
 		else:
 			formated_price.append(precio)
 	return formated_price
-	
 
 # Func para obtener los datos de artículo y precio output: -> tuples, list [(a,b),(c,d)]
 def get_items_price(url):	# Whe get the data from a single URL
