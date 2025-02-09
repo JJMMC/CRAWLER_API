@@ -56,7 +56,7 @@ def formating_price(price_list):
 	return formated_price
 
 # Func para obtener los datos de artículo y precio output: -> tuples, list [(a,b),(c,d)]
-def get_items_price(url):	# Whe get the data from a single URL
+def get_items_data(url):	# Whe get the data from a single URL
 	soup = soup_generator(url)
 	items_list = [i.h2.string for i in soup.find_all("div", class_="product-description")]
 	price_list = [i.string for i in soup.find_all(class_="price")]
@@ -70,7 +70,7 @@ def get_items_price(url):	# Whe get the data from a single URL
 
 	return item_price_category_list
 
-#result = get_items_price("https://www.rtrvalladolid.es/134-llantas-crawler?page=2")
+#result = get_items_data("https://www.rtrvalladolid.es/134-llantas-crawler?page=2")
 #print(result)
 
 	

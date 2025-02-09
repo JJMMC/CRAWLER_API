@@ -1,7 +1,6 @@
 import sqlite3 as sql
 import datetime
-from scrap_url import *
-
+from scrap_url import get_items_data, request_categorias_and_main_urls, find_child_urls
 
 path = "database/rtr_crawler_db.db"
 
@@ -37,7 +36,7 @@ def request_all_and_insert(table='precios'):
         child_urls = find_child_urls(main_urls[1]) #List    
         for url in child_urls:
                 print (url)
-                item_list = get_items_price(url)
+                item_list = get_items_data(url)
                 insert_in_table(table,item_list)
 
 def request_category_and_insert(cat=0,table='precios'):
@@ -46,7 +45,7 @@ def request_category_and_insert(cat=0,table='precios'):
     child_urls = find_child_urls(main_urls[1]) #List    
     for url in child_urls:
             print (url)
-            item_list = get_items_price(url)
+            item_list = get_items_data(url)
             #insert_in_table(table,item_list)
             print(item_list[0])
             #print("")
