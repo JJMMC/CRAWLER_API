@@ -2,4 +2,4 @@
 **/.venv
 **/__pycache__
 **/recover_db.py
-
+**/transfer_old_db.py

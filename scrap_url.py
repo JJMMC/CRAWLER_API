@@ -70,8 +70,7 @@ def get_items_data(url):	# Whe get the data from a single URL
 
 	return item_price_category_list
 
-#result = get_items_data("https://www.rtrvalladolid.es/134-llantas-crawler?page=2")
-#print(result)
+
 
 	
 
