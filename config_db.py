@@ -1,62 +1,98 @@
 import sqlite3 as sql
-import datetime
+import time
 from scrap_url import get_items_data, request_categorias_and_main_urls, find_child_urls
 
-path = "database/rtr_crawler_db.db"
+path = "database/rtr_crawler.db"
 
 
-def create_tables ():
+def create_tables (path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
         cursor = connection.cursor()
+
+        #Creamos tabla HISTORIAL PRECIOS
         instruction = '''
-        CREATE TABLE precios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        categoria TEXT NOT NULL,
-        articulo TEXT NOT NULL,
-        precio REAL NOT NULL,
-        fecha DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
+        CREATE TABLE IF NOT EXISTS historial_precios (
+    	id INTEGER PRIMARY KEY AUTOINCREMENT,
+    	articulo_id INTEGER,
+    	precio REAL NOT NULL,
+    	fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    	FOREIGN KEY (articulo_id) REFERENCES articulos(id)
+		);
         '''
         cursor.execute(instruction)
         connection.commit()
         print("Tabla -precios- creada correctamente")
+        
+        #Creamos tabla ARTÍCULOS
+        instruction = '''
+        CREATE TABLE IF NOT EXISTS articulos (
+    	id INTEGER PRIMARY KEY AUTOINCREMENT,
+    	nombre TEXT NOT NULL UNIQUE,
+    	categoria TEXT
+		);
+        '''
+        cursor.execute(instruction)
+        connection.commit()
+        print("Tabla -articulos- creada correctamente")
 
-def insert_in_table(table,item_list):
+# Función para obtener list de tuplas (id,nombre)
+def obtener_articulo_id_nombre(path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
-        actual_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         cursor = connection.cursor()
-        instruccion = f"INSERT INTO {table} VALUES (NULL,?, ?, ?,'{actual_date}')"
-        cursor.executemany(instruccion, item_list)
+        cursor.execute('''SELECT id, nombre FROM articulos ''')
+        id_name_lst = cursor.fetchall()        
+    return id_name_lst
+
+# Función para agregar un artículo
+def agregar_articulo(nombre, categoria, path = "database/rtr_crawler.db"):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''INSERT OR IGNORE INTO articulos (nombre, categoria)
+                         VALUES (?, ?)'''
+        cursor.execute(instruction, (nombre, categoria))
         connection.commit()
 
-#Request data from all categories and insert them in DB
-def request_all_and_insert(table='precios'):
+# Función para agregar el precio de un artículo al historial
+def agregar_precio(articulo_id, precio, path = "database/rtr_crawler.db"):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''INSERT INTO historial_precios (articulo_id, precio) 
+                      VALUES (?, ?)'''
+        cursor.execute(instruction, (articulo_id, precio))
+        connection.commit()
+
+# Función que Comprueba de manera INDIVIDUAL si en TABLA ARTICULOS e INSERT PRECIO
+def check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import):        
+    id_nom_lst = obtener_articulo_id_nombre()#lista tuplas(id,nombre) TABLA ARTICULOS
+
+    if nom_to_import in [nom for id, nom in id_nom_lst]:#Comprobamos si el artículo está en la TABLA ARTICULOS
+        print ("SI está en Tabla artículos")
+        for articulo_id, nombre in id_nom_lst: #Desempaquetamos list id's y nombres y nos movemos por la lista 
+            if nom_to_import == nombre: #Buscamos el id vía el nombre 
+                    print('ID localizado; Insertamos nuevo precio')
+                    agregar_precio(articulo_id, pre_to_import)
+                    #time.sleep(1)
+            else:
+                continue
+    else:
+        agregar_articulo(nom_to_import,cat_to_import)
+        check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import)
+
+# Funcion que obtiene URLS CHILD Obtiene DATOS Y EJECuTA LA FUNCION DE CHECK ARTICLE
+def request_and_insert_all():
     categories_and_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
     for main_urls in categories_and_urls:         
         child_urls = find_child_urls(main_urls[1]) #List    
         for url in child_urls:
                 print (url)
-                item_list = get_items_data(url)
-                insert_in_table(table,item_list)
+                item_list = get_items_data(url) #list(cat, name, price)
+                for cat_to_import, nom_to_import, pre_to_import in item_list:
+                    check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import)
 
-def request_category_and_insert(cat=0,table='precios'):
-    categories_and_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
-    main_urls = categories_and_urls[cat]
-    child_urls = find_child_urls(main_urls[1]) #List    
-    for url in child_urls:
-            print (url)
-            item_list = get_items_data(url)
-            #insert_in_table(table,item_list)
-            print(item_list[0])
-            #print("")
-    
+#request_and_insert_all()
 
 
 
-#Rebuild_db_with_tables ()
-def rebuild_db_with_tables ():
-    create_tables()
-    request_all_and_insert()
 
 
 
