@@ -1,33 +1,55 @@
 import sqlite3 as sql
 from datetime import datetime
 
-db_path = "database/rtr_crawler_db2.db"
+path = "database/rtr_crawler.db"
 
-def obtener_todo(path, tabla="precios"):
+def obtener_todo(path = "database/rtr_crawler.db", tabla="historial_precios"):
     # Conectar a la base de datos SQLite
     with sql.connect(path) as connection:
         cursor = connection.cursor()
 
     # Obtener toda la información de la base de datos
-    cursor.execute(f"SELECT categoria, articulo, precio, fecha FROM {tabla}")
+    cursor.execute(f"SELECT articulo_id, precio, fecha  FROM {tabla} ORDER BY fecha DESC")
     todo = cursor.fetchall()# Retorna lista de tuplas (categoria, articulo, precio, fecha)
+    return todo
+    #return [(articulo_id, precio, datetime.strptime(fecha, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d')) for articulo_id, precio, fecha in todo]
 
-    return [(articulo, categoria, precio, datetime.strptime(fecha, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d')) for categoria, articulo, precio, fecha in todo]
 
-
-def obtener_fechas_unicas():
-    total = obtener_todo(db_path)
+def obtener_fechas_unicas(path = "database/rtr_crawler.db"):
+    total = obtener_todo(path)
+    total = [(articulo_id, precio, datetime.strptime(fecha, '%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d')) for articulo_id, precio, fecha in total]
     lst_fechas = []
     for articulo in total:
-        if articulo[3] not in lst_fechas:
-            lst_fechas.append(articulo[3])
+        if articulo[2] not in lst_fechas:
+            lst_fechas.append(articulo[2])
     return(lst_fechas)
 
-def cambio_de_precio():
-	total = obtener_todo(db_path)
-	
-	
-	
+
+def obtener_ultimo_precio(articulo_id):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        cursor.execute('''SELECT precio FROM historial_precios 
+                      WHERE articulo_id = ? ORDER BY fecha DESC LIMIT 1''', (articulo_id,))
+        resultado = cursor.fetchone()
+    return resultado[0] if resultado else None
+
+
+def contar_entradas_articulo(articulo_id):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        cursor.execute('''SELECT COUNT(*) FROM historial_precios 
+                          WHERE articulo_id = ?''', (articulo_id,))
+        resultado = cursor.fetchone()
+    return resultado[0] if resultado else 0
+
+
+print(contar_entradas_articulo(13))
+
+
+
+
+
+
 	
 
 # Para almacenar datos en una base de datos SQLite y realizar un seguimiento de los cambios de precios, lo más recomendable es estructurar bien las tablas y mantener un historial de los precios de los artículos. Te sugeriría una estructura de base de datos con al menos dos tablas: una para los artículos y otra para el historial de precios.

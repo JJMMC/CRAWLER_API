@@ -29,8 +29,6 @@ def obtener_tablas(path="database/Old_data/rtr_db.db"):
         tablas = cursor.fetchall()
         return [tabla[0] for tabla in tablas] #Lista []
 
-
-
 def dict_of_tables(path="database/Old_data/rtr_db.db"):
     table_lst = obtener_tablas(path)
     data = {}
