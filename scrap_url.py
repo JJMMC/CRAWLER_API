@@ -1,45 +1,49 @@
 from bs4 import BeautifulSoup
 import requests
+import re
 
+discipline_url = 'https://www.rtrvalladolid.es/87-crawler'
 
 def soup_generator(url):
-	res = requests.get(url,timeout=10)
-	content = res.text
-	soup = BeautifulSoup(content, "html.parser")
-	return soup
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        content = res.text
+        soup = BeautifulSoup(content, "html.parser")
+        return soup
+    except requests.RequestException as e:
+        print(f"Error fetching {url}: {e}")
+        return None
 
 #Corrección de lista Categorias para importar nombres sin espacios en columnas de SQLite
 def correc_list_spaces(lista_categorias):
-    for i in lista_categorias:
-        i = i.replace(",","")
-        i = i.replace(" ", "")
-        yield i
+    return [i.replace(",", "").replace(" ", "") for i in lista_categorias]
 
-def request_categorias_and_main_urls(url = "https://www.rtrvalladolid.es/87-crawler"):
-	soup = soup_generator(url)
-	soup_categorias = soup.find("ul", class_="category-sub-menu").find_all("a")
-	los_submenus = soup.find("ul", class_="category-sub-menu").find_all("a",class_="category-sub-link")
-	soup_categorias = [url for url in soup_categorias if url not in los_submenus]
-	categorias = [i.string for i in soup_categorias]
-	categorias_corregidas =correc_list_spaces(categorias)
-	main_urls = [i.get("href") for i in soup_categorias]
-	final_zip = zip(categorias,main_urls,categorias_corregidas)
-	return final_zip
+def request_categorias_and_main_urls(url="https://www.rtrvalladolid.es/87-crawler"):
+    soup = soup_generator(url)
+    if not soup:
+        return
+    soup_categorias = soup.find("ul", class_="category-sub-menu").find_all("a")
+    los_submenus = soup.find("ul", class_="category-sub-menu").find_all("a", class_="category-sub-link")
+    soup_categorias = [url for url in soup_categorias if url not in los_submenus]
+    categorias = [i.string for i in soup_categorias]
+    categorias_corregidas = correc_list_spaces(categorias)
+    categorias_urls = [i.get("href") for i in soup_categorias]
+    for categoria, url, corregida in zip(categorias, categorias_urls, categorias_corregidas):
+        yield categoria, url, corregida
 
 # Función que dada la main url de la familia retorna list() de las url que descuelgan de ella para extraer los datos
-def find_child_urls(url):
-	for i in range (1,10):
-		
-		test_url = f"{url}?page={str(i)}" # formato de las urls de RTR para moverse entre páginas
-		soup = soup_generator(test_url)
-		vacio = soup.find(class_="page-content page-not-found") #Buscamos esta clase para encontrar la página sin datos
-		
-		if vacio == None:
-			#total_paginas_url.append(test_url)
-			yield test_url
-			
-		else:
-			break			
+def find_child_urls(cat_url):
+    for i in range(1, 10):
+        test_url = f"{cat_url}?page={str(i)}"
+        soup = soup_generator(test_url)
+        if not soup:
+            continue
+        vacio = soup.find(class_="page-content page-not-found")
+        if vacio is None:
+            yield test_url
+        else:
+            break		
 		
 	#Retorna list con urls de la catergoría YIELD
 
@@ -50,31 +54,93 @@ def formating_price(price_list):
 		precio = i.text.replace("€","").replace(",",".").strip()
 		if len(precio) > 6:
 			precio = precio.replace(".","",1)
-			formated_price.append(precio)
-		else:
-			formated_price.append(precio)
+		formated_price.append(precio)
 	return formated_price
 
-# Func para obtener los datos de artículo y precio output: -> tuples, list [(a,b),(c,d)]
-def get_items_data(url):	# Whe get the data from a single URL
-	soup = soup_generator(url)
-	items_list = [i.h2.string for i in soup.find_all("div", class_="product-description")]
-	price_list = [i.string for i in soup.find_all(class_="price")]
-	price_list = formating_price(price_list)
-	category_list = []
-	for i in range(len(price_list)):
-		category_list.append(soup.title.string)
+############
 
-	item_price_list = [(i,v) for i,v in zip(items_list,price_list)]
-	item_price_category_list = [(h,i,v) for h,i,v in zip(category_list, items_list,	price_list)]
+# Scrap info from the URL as an string
+def extract_product_info_from_url(url):
+    pattern = r"(-\d+[\w-]+)\.html"
+    match = re.search(pattern, url)
+    if match:
+        # print("Match POSITIVO")
+        # print(match)
+        # print(match.group(1))
+        full_match = match.group(1)
+        # print(full_match)
+        
+        pattern = r"^-(\d+)"
+        rtr_id_num = re.search(pattern,full_match)
+        rtr_id_num = rtr_id_num.group(1)
+        #print(f'\nEl modelo es: {rtr_id_num}')
+        
+        pattern = r"-(\d+)$"
+        ean_num = re.search(pattern,full_match)
+        if ean_num:
+            ean_num = ean_num.group(1)            
+        else:
+            ean_num = None
+        #print(f'El Item_num es: {ean_num}')
+            
+        pattern = r"-\d+([a-zA-Z0-9-]+)-\d+$"
+        item_name = re.search(pattern,full_match)
+        if item_name:
+            item_name = item_name.group(1)
+        else:
+            pattern = r"-\d+([a-zA-Z0-9-]+)"
+            item_name = re.search(pattern,full_match)
+            item_name = item_name.group(1)
 
-	return item_price_category_list
+        item_name = item_name.replace("-"," ")
+        item_name = item_name.capitalize()
+        #print(f'El Item_name es: {item_name}\n')
+        
+        return (rtr_id_num, item_name, url, ean_num)
+    else:
+        print(" OOOOOJJJJJJOOOOO no match")
+        return None
 
-
-
+# Scrapp all info from a Single Child URL
+def scrap_product_details(url, cat):
+	print("Obteniendo informacion:", url)
 	
+	# Generamos la sopa para la url child
+	child_soup = soup_generator(url)
+
+	# Obtenemos la lista de urls de cada uno de los artículos
+	prod_hrefs_lst = [href.a.get('href') for href in child_soup.find_all('div', class_='product-description')]
+	
+	# Obtenemos los nombres, rtr_id, y ean
+	prod_name_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
+	prod_rtr_id_art_lst = [extract_product_info_from_url(href)[0] for href in prod_hrefs_lst]
+	prod_ean = [extract_product_info_from_url(href)[3] for href in prod_hrefs_lst]
+	
+	# Obtenemos el precio de cada uno de los productos 
+	prod_price_lst = [precio.string for precio in child_soup.find_all('span', class_='price')]
+	prod_price_lst = formating_price(prod_price_lst)
+
+	# Obtenemos la ruta de las imagenes
+	prod_img_url_lst= child_soup.find_all('a', class_='thumbnail')
+	prod_img_url_lst= [img_url.img.get('data-full-size-image-url') for img_url in prod_img_url_lst ]
+
+	prod_cat_lst = [cat]* len(prod_price_lst)
+	
+	
+	# print(len(prod_ean))
+	# print(len(prod_hrefs_lst))
+	# print(len(prod_name_lst))
+	# print(len(prod_price_lst_formated))
+	# print(len(prod_rtr_id_art_lst))
+	return zip (prod_cat_lst, prod_rtr_id_art_lst, prod_name_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst)
 
 
 
 
-
+#  - Main - Scrap all info from all childs from all categories.
+def scrap_rtr_crawler():
+    for cat, cat_url, _ in request_categorias_and_main_urls():
+        print('Scraping :', cat)
+        for child_url in find_child_urls(cat_url):
+            for product_details in scrap_product_details(child_url, cat):
+                yield product_details

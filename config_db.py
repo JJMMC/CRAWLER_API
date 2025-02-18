@@ -1,10 +1,12 @@
 import sqlite3 as sql
+from scrap_url import scrap_rtr_crawler, request_categorias_and_main_urls, find_child_urls
 import time
-from scrap_url import get_items_data, request_categorias_and_main_urls, find_child_urls
+
 
 path = "database/rtr_crawler.db"
 
-
+####### Funciones simples
+# Crea la base de Datos y las tablas
 def create_tables (path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
         cursor = connection.cursor()
@@ -13,10 +15,10 @@ def create_tables (path = "database/rtr_crawler.db"):
         instruction = '''
         CREATE TABLE IF NOT EXISTS historial_precios (
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
-    	articulo_id INTEGER,
+    	rtr_id INTEGER,
     	precio REAL NOT NULL,
-    	fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-    	FOREIGN KEY (articulo_id) REFERENCES articulos(id)
+    	fecha TEXT DEFAULT (strftime('%d-%m-%Y', 'now', 'localtime')),
+    	FOREIGN KEY (rtr_id) REFERENCES articulos(rtr_id)
 		);
         '''
         cursor.execute(instruction)
@@ -27,30 +29,43 @@ def create_tables (path = "database/rtr_crawler.db"):
         instruction = '''
         CREATE TABLE IF NOT EXISTS articulos (
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
-    	nombre TEXT NOT NULL UNIQUE,
-    	categoria TEXT
+        categoria TEXT,
+    	nombre TEXT,
+    	rtr_id TEXT NOT NULL UNIQUE,
+        ean INTEGER,
+        art_url TEXT,
+        img_url TEXT
 		);
         '''
         cursor.execute(instruction)
         connection.commit()
         print("Tabla -articulos- creada correctamente")
 
-# Función para obtener list de tuplas (id,nombre)
-def obtener_articulo_id_nombre(path = "database/rtr_crawler.db"):
+# Función para obtener list de tuplas (id,rtr_id)
+def obtener_lista_articulos_declarados(path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
         cursor = connection.cursor()
-        cursor.execute('''SELECT id, nombre FROM articulos ''')
-        id_name_lst = cursor.fetchall()        
-    return id_name_lst
+        cursor.execute('''SELECT id, rtr_id FROM articulos ''')
+        id_rtrid_lst = cursor.fetchall()        
+    return id_rtrid_lst
 
 # Función para agregar un artículo
-def agregar_articulo(nombre, categoria, path = "database/rtr_crawler.db"):
-    with sql.connect(path) as connection:
-        cursor = connection.cursor()
-        instruction = '''INSERT OR IGNORE INTO articulos (nombre, categoria)
-                         VALUES (?, ?)'''
-        cursor.execute(instruction, (nombre, categoria))
-        connection.commit()
+def agregar_articulo( categoria, nombre, rtr_id, ean, art_url, img_url,  path = "database/rtr_crawler.db"):
+
+    # Comprobamos que el artículo no esta en la tabla de artículos
+    rtr_ids_lst = [rtr_id[1] for rtr_id in obtener_lista_articulos_declarados()]    
+    if rtr_id in rtr_ids_lst:
+        print("Artículo DUPLICADO en tabla")
+        return False
+    
+    # Insertamos datos en tabla
+    else:    
+        with sql.connect(path) as connection:
+            cursor = connection.cursor()
+            instruction = '''INSERT OR IGNORE INTO articulos (categoria, nombre, rtr_id, ean, art_url, img_url)
+                            VALUES (?, ?, ?, ?, ?, ?)'''
+            cursor.execute(instruction, (categoria, nombre, rtr_id, ean, art_url, img_url))
+            connection.commit()
 
 # Función para agregar el precio de un artículo al historial
 def agregar_precio(articulo_id, precio, path = "database/rtr_crawler.db"):
@@ -61,42 +76,74 @@ def agregar_precio(articulo_id, precio, path = "database/rtr_crawler.db"):
         cursor.execute(instruction, (articulo_id, precio))
         connection.commit()
 
-# Función que Comprueba de manera INDIVIDUAL si en TABLA ARTICULOS e INSERT PRECIO
-def check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import):        
-    id_nom_lst = obtener_articulo_id_nombre()#lista tuplas(id,nombre) TABLA ARTICULOS
-
-    if nom_to_import in [nom for id, nom in id_nom_lst]:#Comprobamos si el artículo está en la TABLA ARTICULOS
-        print ("SI está en Tabla artículos")
-        for articulo_id, nombre in id_nom_lst: #Desempaquetamos list id's y nombres y nos movemos por la lista 
-            if nom_to_import == nombre: #Buscamos el id vía el nombre 
-                    print('ID localizado; Insertamos nuevo precio')
-                    agregar_precio(articulo_id, pre_to_import)
-                    #time.sleep(1)
-            else:
-                continue
+#### Funciones de Comprobación  ####
+# Get article_ID
+def get_create_art_id(new_cat, new_rtr_id, new_name, new_price, new_ean, new_art_url, new_art_img_url):    
+    if new_rtr_id in [rtr_id for _, rtr_id in obtener_lista_articulos_declarados()]:#Comprobamos si el artículo está en la TABLA ARTICULOS
+        #print('Artículo ya declarado en tabla artículos')
+        for art_id, rtr_id in obtener_lista_articulos_declarados():
+            if new_rtr_id == rtr_id:
+                #print("Obteniendo Id de articulo")
+                return art_id
     else:
-        agregar_articulo(nom_to_import,cat_to_import)
-        check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import)
+        agregar_articulo(new_cat,new_name,new_rtr_id,new_ean,new_art_url, new_art_img_url)
+        get_create_art_id(new_cat,new_name,new_rtr_id,new_ean,new_art_url, new_art_img_url)        
 
-# Funcion que obtiene URLS CHILD Obtiene DATOS Y EJECuTA LA FUNCION DE CHECK ARTICLE
-def request_and_insert_all():
-    categories_and_urls = [(i[2],i[1]) for i in request_categorias_and_main_urls()]
-    for main_urls in categories_and_urls:         
-        child_urls = find_child_urls(main_urls[1]) #List    
-        for url in child_urls:
-                print (url)
-                item_list = get_items_data(url) #list(cat, name, price)
-                for cat_to_import, nom_to_import, pre_to_import in item_list:
-                    check_article_id_and_insert(cat_to_import, nom_to_import, pre_to_import)
+def check_double_data_in_db():
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        cursor.execute('''SELECT articulo_id, fecha FROM historial_precios ''')
+        dbl_check_list = cursor.fetchall()
+        
+        ids_vistos = set()
+        duplicados = set()
+    
+        for id, fecha in dbl_check_list:
+            #time.sleep(0.3)
+            print(id)
+            if id in ids_vistos:
+                duplicados.add(id)
+                print("Elemento duplicado encontrado", id)
+            else:
+                ids_vistos.add(id)
+                print('ok')
+       
+        print(ids_vistos)
+        return list(duplicados)
 
-#request_and_insert_all()
+def update_tabla_articulos():
+    #Update tabla ARTICULOS
+    print("Inicio UPDATE ARTICULOS")
+    for cat, rtr_id, name, price, ean, art_url, art_img_url in scrap_rtr_crawler():
+        agregar_articulo(cat, name, rtr_id, ean, art_url, art_img_url )
+        #print(f'Artículos agregados a categoria: {cat}')
+    print("Tabla Articulos ACTUALIZADA")
 
+####### Funciones Complejas
+# Actualiza la tabla de precio
+def update_tabla_precios():
+    #Update tabla ARTICULOS
+    print("Inicio UPDATE PRECIOS")
+    for cat, rtr_id, name, price, ean, art_url, art_img_url in scrap_rtr_crawler():
+        #agregar_precio(cat, rtr_id, name, price, ean, art_url, art_img_url)
+        art_id = get_create_art_id(cat, rtr_id, name, price, ean, art_url, art_img_url)
+        agregar_precio(art_id,price)
 
+def eliminar_filas_por_fecha(fecha, path="database/rtr_crawler.db"):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''DELETE FROM historial_precios WHERE fecha = ?'''
+        cursor.execute(instruction, (fecha,))
+        connection.commit()
+        print(f"Filas con fecha {fecha} eliminadas correctamente")
 
+# # Ejemplo de uso
+# fecha_especifica = "2025-02-17"
+# eliminar_filas_por_fecha(fecha_especifica)
 
-
-
-
+create_tables()
+#update_tabla_articulos()
+#update_tabla_precios()
 
 
 

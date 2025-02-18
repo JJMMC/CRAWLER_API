@@ -3,3 +3,10 @@
 **/__pycache__
 **/recover_db.py
 **/transfer_old_db.py
+**/kkp2.py
+**/config_db2.py
+**/scrap_url_old.py
+**/scrap_url_selenium.py
+**/scrap_url_selenium2.py
+
+
