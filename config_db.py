@@ -1,7 +1,7 @@
 import sqlite3 as sql
 from scrap_url import scrap_rtr_crawler, request_categorias_and_main_urls, find_child_urls
 import time
-
+from kkp2 import scraped_list
 
 path = "database/rtr_crawler.db"
 
@@ -15,7 +15,7 @@ def create_tables (path = "database/rtr_crawler.db"):
         instruction = '''
         CREATE TABLE IF NOT EXISTS historial_precios (
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
-    	rtr_id INTEGER,
+    	rtr_id TEXT NOT NULL UNIQUE,
     	precio REAL NOT NULL,
     	fecha TEXT DEFAULT (strftime('%d-%m-%Y', 'now', 'localtime')),
     	FOREIGN KEY (rtr_id) REFERENCES articulos(rtr_id)
@@ -68,27 +68,28 @@ def agregar_articulo( categoria, nombre, rtr_id, ean, art_url, img_url,  path = 
             connection.commit()
 
 # Función para agregar el precio de un artículo al historial
-def agregar_precio(articulo_id, precio, path = "database/rtr_crawler.db"):
+def agregar_precio(rtr_id, precio, path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
         cursor = connection.cursor()
-        instruction = '''INSERT INTO historial_precios (articulo_id, precio) 
+        instruction = '''INSERT INTO historial_precios (rtr_id, precio) 
                       VALUES (?, ?)'''
-        cursor.execute(instruction, (articulo_id, precio))
+        cursor.execute(instruction, (rtr_id, precio))
         connection.commit()
 
 #### Funciones de Comprobación  ####
-# Get article_ID
-def get_create_art_id(new_cat, new_rtr_id, new_name, new_price, new_ean, new_art_url, new_art_img_url):    
-    if new_rtr_id in [rtr_id for _, rtr_id in obtener_lista_articulos_declarados()]:#Comprobamos si el artículo está en la TABLA ARTICULOS
-        #print('Artículo ya declarado en tabla artículos')
-        for art_id, rtr_id in obtener_lista_articulos_declarados():
-            if new_rtr_id == rtr_id:
-                #print("Obteniendo Id de articulo")
-                return art_id
+# Check if rtr_id in tabla articulos
+def check_rtr_id_in_articulos(scraped_product):
+    new_cat,new_rtr_id,new_name, new_price, new_ean, new_art_url, new_art_img_url = scraped_product    
+    if new_rtr_id in [ rtr_id for id, rtr_id in obtener_lista_articulos_declarados()]:
+        print('Artículo declarado en la lista de artículos')
+        return True
     else:
-        agregar_articulo(new_cat,new_name,new_rtr_id,new_ean,new_art_url, new_art_img_url)
-        get_create_art_id(new_cat,new_name,new_rtr_id,new_ean,new_art_url, new_art_img_url)        
-
+        print('Artículo no declarado en la lisa de artículos')
+        print('Agregando NUEVO RTR_ID')
+        agregar_articulo(new_cat, new_name, new_rtr_id, new_ean, new_art_url, new_art_img_url)
+        return False
+        
+        
 def check_double_data_in_db():
     with sql.connect(path) as connection:
         cursor = connection.cursor()
@@ -111,6 +112,9 @@ def check_double_data_in_db():
         print(ids_vistos)
         return list(duplicados)
 
+#### Funciones Complejas  ####
+
+# Actualiza la tabla de artículos
 def update_tabla_articulos():
     #Update tabla ARTICULOS
     print("Inicio UPDATE ARTICULOS")
@@ -119,15 +123,13 @@ def update_tabla_articulos():
         #print(f'Artículos agregados a categoria: {cat}')
     print("Tabla Articulos ACTUALIZADA")
 
-####### Funciones Complejas
 # Actualiza la tabla de precio
 def update_tabla_precios():
     #Update tabla ARTICULOS
     print("Inicio UPDATE PRECIOS")
     for cat, rtr_id, name, price, ean, art_url, art_img_url in scrap_rtr_crawler():
-        #agregar_precio(cat, rtr_id, name, price, ean, art_url, art_img_url)
-        art_id = get_create_art_id(cat, rtr_id, name, price, ean, art_url, art_img_url)
-        agregar_precio(art_id,price)
+        agregar_precio(rtr_id,price)
+
 
 def eliminar_filas_por_fecha(fecha, path="database/rtr_crawler.db"):
     with sql.connect(path) as connection:
@@ -142,8 +144,8 @@ def eliminar_filas_por_fecha(fecha, path="database/rtr_crawler.db"):
 # eliminar_filas_por_fecha(fecha_especifica)
 
 create_tables()
-#update_tabla_articulos()
-#update_tabla_precios()
+update_tabla_articulos()
+update_tabla_precios()
 
 
 

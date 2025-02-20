@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import re
+from kkp2 import scraped_list
 
 discipline_url = 'https://www.rtrvalladolid.es/87-crawler'
 
@@ -15,7 +16,7 @@ def soup_generator(url):
         print(f"Error fetching {url}: {e}")
         return None
 
-#Corrección de lista Categorias para importar nombres sin espacios en columnas de SQLite
+# Corrección de lista Categorias para importar nombres sin espacios en columnas de SQLite
 def correc_list_spaces(lista_categorias):
     return [i.replace(",", "").replace(" ", "") for i in lista_categorias]
 
@@ -32,7 +33,7 @@ def request_categorias_and_main_urls(url="https://www.rtrvalladolid.es/87-crawle
     for categoria, url, corregida in zip(categorias, categorias_urls, categorias_corregidas):
         yield categoria, url, corregida
 
-# Función que dada la main url de la familia retorna list() de las url que descuelgan de ella para extraer los datos
+# Función que dada la cat_url de la categoria retorna list() de las urls (páginas) que descuelgan de ella para extraer los datos
 def find_child_urls(cat_url):
     for i in range(1, 10):
         test_url = f"{cat_url}?page={str(i)}"
@@ -43,19 +44,17 @@ def find_child_urls(cat_url):
         if vacio is None:
             yield test_url
         else:
-            break		
-		
-	#Retorna list con urls de la catergoría YIELD
+            break
 
-# Damos formato al precio para dejarlo como queremos	
+# Damos formato al precio para dejarlo como queremos
 def formating_price(price_list):
-	formated_price = []
-	for i in price_list:
-		precio = i.text.replace("€","").replace(",",".").strip()
-		if len(precio) > 6:
-			precio = precio.replace(".","",1)
-		formated_price.append(precio)
-	return formated_price
+    formated_price = []
+    for i in price_list:
+        precio = i.text.replace("€", "").replace(",", ".").strip()
+        if len(precio) > 6:
+            precio = precio.replace(".", "", 1)
+        formated_price.append(precio)
+    return formated_price
 
 ############
 
@@ -69,33 +68,33 @@ def extract_product_info_from_url(url):
         # print(match.group(1))
         full_match = match.group(1)
         # print(full_match)
-        
+
         pattern = r"^-(\d+)"
-        rtr_id_num = re.search(pattern,full_match)
+        rtr_id_num = re.search(pattern, full_match)
         rtr_id_num = rtr_id_num.group(1)
-        #print(f'\nEl modelo es: {rtr_id_num}')
-        
+        # print(f'\nEl modelo es: {rtr_id_num}')
+
         pattern = r"-(\d+)$"
-        ean_num = re.search(pattern,full_match)
+        ean_num = re.search(pattern, full_match)
         if ean_num:
-            ean_num = ean_num.group(1)            
+            ean_num = ean_num.group(1)
         else:
             ean_num = None
-        #print(f'El Item_num es: {ean_num}')
-            
+        # print(f'El Item_num es: {ean_num}')
+
         pattern = r"-\d+([a-zA-Z0-9-]+)-\d+$"
-        item_name = re.search(pattern,full_match)
+        item_name = re.search(pattern, full_match)
         if item_name:
             item_name = item_name.group(1)
         else:
             pattern = r"-\d+([a-zA-Z0-9-]+)"
-            item_name = re.search(pattern,full_match)
+            item_name = re.search(pattern, full_match)
             item_name = item_name.group(1)
 
-        item_name = item_name.replace("-"," ")
+        item_name = item_name.replace("-", " ")
         item_name = item_name.capitalize()
-        #print(f'El Item_name es: {item_name}\n')
-        
+        # print(f'El Item_name es: {item_name}\n')
+
         return (rtr_id_num, item_name, url, ean_num)
     else:
         print(" OOOOOJJJJJJOOOOO no match")
@@ -103,44 +102,81 @@ def extract_product_info_from_url(url):
 
 # Scrapp all info from a Single Child URL
 def scrap_product_details(url, cat):
-	print("Obteniendo informacion:", url)
-	
-	# Generamos la sopa para la url child
-	child_soup = soup_generator(url)
+    print("Obteniendo informacion:", url)
 
-	# Obtenemos la lista de urls de cada uno de los artículos
-	prod_hrefs_lst = [href.a.get('href') for href in child_soup.find_all('div', class_='product-description')]
-	
-	# Obtenemos los nombres, rtr_id, y ean
-	prod_name_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
-	prod_rtr_id_art_lst = [extract_product_info_from_url(href)[0] for href in prod_hrefs_lst]
-	prod_ean = [extract_product_info_from_url(href)[3] for href in prod_hrefs_lst]
-	
-	# Obtenemos el precio de cada uno de los productos 
-	prod_price_lst = [precio.string for precio in child_soup.find_all('span', class_='price')]
-	prod_price_lst = formating_price(prod_price_lst)
+    # Generamos la sopa para la url child
+    child_soup = soup_generator(url)
 
-	# Obtenemos la ruta de las imagenes
-	prod_img_url_lst= child_soup.find_all('a', class_='thumbnail')
-	prod_img_url_lst= [img_url.img.get('data-full-size-image-url') for img_url in prod_img_url_lst ]
+    # Obtenemos la lista de urls de cada uno de los artículos
+    prod_hrefs_lst = [href.a.get('href') for href in child_soup.find_all('div', class_='product-description')]
 
-	prod_cat_lst = [cat]* len(prod_price_lst)
-	
-	
-	# print(len(prod_ean))
-	# print(len(prod_hrefs_lst))
-	# print(len(prod_name_lst))
-	# print(len(prod_price_lst_formated))
-	# print(len(prod_rtr_id_art_lst))
-	return zip (prod_cat_lst, prod_rtr_id_art_lst, prod_name_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst)
+    # Obtenemos los nombres, rtr_id, y ean
+    prod_name_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
+    prod_rtr_id_art_lst = [extract_product_info_from_url(href)[0] for href in prod_hrefs_lst]
+    prod_ean = [extract_product_info_from_url(href)[3] for href in prod_hrefs_lst]
 
+    # Obtenemos el precio de cada uno de los productos
+    prod_price_lst = [precio.string for precio in child_soup.find_all('span', class_='price')]
+    prod_price_lst = formating_price(prod_price_lst)
 
+    # Obtenemos la ruta de las imagenes
+    prod_img_url_lst = child_soup.find_all('a', class_='thumbnail')
+    prod_img_url_lst = [img_url.img.get('data-full-size-image-url') for img_url in prod_img_url_lst]
 
+    prod_cat_lst = [cat] * len(prod_price_lst)
 
-#  - Main - Scrap all info from all childs from all categories.
+    # Asegurémonos de que todas las listas tienen el mismo número de elementos
+    if not (len(prod_cat_lst) == len(prod_rtr_id_art_lst) == len(prod_name_lst) == len(prod_price_lst) == len(prod_ean) == len(prod_hrefs_lst) == len(prod_img_url_lst)):
+        print("Error: Las listas no tienen el mismo número de elementos")
+        return []
+    # print(len(prod_ean))
+    # print(len(prod_hrefs_lst))
+    # print(len(prod_name_lst))
+    # print(len(prod_price_lst_formated))
+    # print(len(prod_rtr_id_art_lst))
+    return list(zip(prod_cat_lst, prod_rtr_id_art_lst, prod_name_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst))
+
+# Comprobación de duplicidad de precios en el Scrapeo
+def check_precios_duplicados(products_details_scraped):
+    id_unicos = []
+    id_duplicados = []
+    final_product_details_sacraped = []
+
+    #Localizamos los duplicados
+    for product in products_details_scraped:
+        cat_scr, rtr_id, name, price, ean, art_url, img_url = product
+        if rtr_id not in id_unicos:
+            print('No esta en la lista de comprobados')
+            id_unicos.append(rtr_id)
+            final_product_details_sacraped.append(product)
+        else:
+            print('Si esta en la lista de comprobados')
+            id_duplicados.append(rtr_id)
+    print("")
+    print('Los ids UNICOS son:')
+    print(id_unicos)
+    print("")
+    print("")
+    print('Los ids DUPLICADOS son:')
+    print(id_duplicados)
+    print("")
+    print("")
+    print('Final LIST son:')
+    print(len(final_product_details_sacraped))
+    #print(final_product_details_sacraped)
+    print("")
+
+    return final_product_details_sacraped
+
+# - Main - Scrap all info from all childs from all categories.
 def scrap_rtr_crawler():
+    product_details_scrapped = []
     for cat, cat_url, _ in request_categorias_and_main_urls():
         print('Scraping :', cat)
         for child_url in find_child_urls(cat_url):
             for product_details in scrap_product_details(child_url, cat):
-                yield product_details
+                product_details_scrapped.append(product_details)
+
+    return check_precios_duplicados(product_details_scrapped)
+
+
