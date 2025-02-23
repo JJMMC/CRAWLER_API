@@ -15,7 +15,7 @@ def create_tables (path = "database/rtr_crawler.db"):
         instruction = '''
         CREATE TABLE IF NOT EXISTS historial_precios (
     	id INTEGER PRIMARY KEY AUTOINCREMENT,
-    	rtr_id TEXT NOT NULL UNIQUE,
+    	rtr_id TEXT NOT NULL,
     	precio REAL NOT NULL,
     	fecha TEXT DEFAULT (strftime('%d-%m-%Y', 'now', 'localtime')),
     	FOREIGN KEY (rtr_id) REFERENCES articulos(rtr_id)
@@ -76,7 +76,9 @@ def agregar_precio(rtr_id, precio, path = "database/rtr_crawler.db"):
         cursor.execute(instruction, (rtr_id, precio))
         connection.commit()
 
+
 #### Funciones de Comprobación  ####
+
 # Check if rtr_id in tabla articulos
 def check_rtr_id_in_articulos(scraped_product):
     new_cat,new_rtr_id,new_name, new_price, new_ean, new_art_url, new_art_img_url = scraped_product    
@@ -88,7 +90,14 @@ def check_rtr_id_in_articulos(scraped_product):
         print('Agregando NUEVO RTR_ID')
         agregar_articulo(new_cat, new_name, new_rtr_id, new_ean, new_art_url, new_art_img_url)
         return False
-        
+
+def eliminar_filas_por_fecha(fecha, path="database/rtr_crawler.db"):
+    with sql.connect(path) as connection:
+        cursor = connection.cursor()
+        instruction = '''DELETE FROM historial_precios WHERE fecha = ?'''
+        cursor.execute(instruction, (fecha,))
+        connection.commit()
+        print(f"Filas con fecha {fecha} eliminadas correctamente")       
         
 def check_double_data_in_db():
     with sql.connect(path) as connection:
@@ -112,6 +121,7 @@ def check_double_data_in_db():
         print(ids_vistos)
         return list(duplicados)
 
+
 #### Funciones Complejas  ####
 
 # Actualiza la tabla de artículos
@@ -131,21 +141,12 @@ def update_tabla_precios():
         agregar_precio(rtr_id,price)
 
 
-def eliminar_filas_por_fecha(fecha, path="database/rtr_crawler.db"):
-    with sql.connect(path) as connection:
-        cursor = connection.cursor()
-        instruction = '''DELETE FROM historial_precios WHERE fecha = ?'''
-        cursor.execute(instruction, (fecha,))
-        connection.commit()
-        print(f"Filas con fecha {fecha} eliminadas correctamente")
 
-# # Ejemplo de uso
-# fecha_especifica = "2025-02-17"
-# eliminar_filas_por_fecha(fecha_especifica)
 
-create_tables()
-update_tabla_articulos()
-update_tabla_precios()
+
+#create_tables()
+#update_tabla_articulos()
+#update_tabla_precios()
 
 
 

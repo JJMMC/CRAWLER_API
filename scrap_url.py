@@ -1,7 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
 import re
-from kkp2 import scraped_list
 
 discipline_url = 'https://www.rtrvalladolid.es/87-crawler'
 
@@ -58,6 +57,46 @@ def formating_price(price_list):
 
 ############
 
+def comprobacion_nombre(nombre):
+    #Comprobamos si el nombre acaba con ...
+    pattern = r"\..."
+    match = re.search(pattern,nombre)
+    if match:
+        print(f"El nombre tiene ...: {nombre}")
+        return True
+    else:
+        print(f"El nombre NO tiene ...: {nombre}")
+        return False
+    
+def correcion_nombre(nombre_incompleto, nombre_url):    
+    nombre_incompleto = nombre_incompleto.replace('...','')
+    #print (nombre_incompleto)
+    
+    
+    nombre_incompleto_lst = nombre_incompleto.replace('/','').lower().split()
+    
+    # for i in nombre_incompleto_lst:
+    #     print (i)
+    # print('')
+    
+    # for i in nombre_url.lower().split():
+    #     print(i)
+    # print('')
+    
+    palabras_falta = ''
+    for i in nombre_url.lower().split():
+        if i in nombre_incompleto_lst:
+            continue
+            #print('Palabra presente')
+        else:
+            palabras_falta = f'{palabras_falta} {i.capitalize()}'
+    
+    return (nombre_incompleto + palabras_falta)
+    
+        
+
+#print(correcion_nombre())
+
 # Scrap info from the URL as an string
 def extract_product_info_from_url(url):
     pattern = r"(-\d+[\w-]+)\.html"
@@ -101,8 +140,8 @@ def extract_product_info_from_url(url):
         return None
 
 # Scrapp all info from a Single Child URL
-def scrap_product_details(url, cat):
-    print("Obteniendo informacion:", url)
+def scrap_product_details(url, cat):    
+    print("\nObteniendo informacion:", url)
 
     # Generamos la sopa para la url child
     child_soup = soup_generator(url)
@@ -110,8 +149,31 @@ def scrap_product_details(url, cat):
     # Obtenemos la lista de urls de cada uno de los artículos
     prod_hrefs_lst = [href.a.get('href') for href in child_soup.find_all('div', class_='product-description')]
 
-    # Obtenemos los nombres, rtr_id, y ean
-    prod_name_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
+    # Obtenemos los nombres para poder procesarlos
+    prod_name_lst = [name.string for name in child_soup.find_all('h2')]
+    prod_name_from_url_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
+    prod_name_for_processing = list(zip(prod_name_lst,prod_name_from_url_lst))
+    #print (prod_name_for_processing)
+    #print(len(prod_name_for_processing))
+    #for i in prod_name_for_processing:
+        #print(i)
+    
+    #print('')
+    prod_name_final_lst = []
+    for name, name_from_url in prod_name_for_processing:
+        resultado = comprobacion_nombre(name)
+        if resultado == True:
+            nombre_corregido = (correcion_nombre(name,name_from_url))
+            prod_name_final_lst.append(nombre_corregido)
+        else:
+            prod_name_final_lst.append(name)
+    
+    # print('')
+    # for i in prod_name_final_lst:
+    #     print(i)
+    
+    # Obtenemos los (nombres), rtr_id, y ean
+    #prod_name_lst = [extract_product_info_from_url(href)[1] for href in prod_hrefs_lst]
     prod_rtr_id_art_lst = [extract_product_info_from_url(href)[0] for href in prod_hrefs_lst]
     prod_ean = [extract_product_info_from_url(href)[3] for href in prod_hrefs_lst]
 
@@ -126,7 +188,7 @@ def scrap_product_details(url, cat):
     prod_cat_lst = [cat] * len(prod_price_lst)
 
     # Asegurémonos de que todas las listas tienen el mismo número de elementos
-    if not (len(prod_cat_lst) == len(prod_rtr_id_art_lst) == len(prod_name_lst) == len(prod_price_lst) == len(prod_ean) == len(prod_hrefs_lst) == len(prod_img_url_lst)):
+    if not (len(prod_cat_lst) == len(prod_rtr_id_art_lst) == len(prod_name_final_lst) == len(prod_price_lst) == len(prod_ean) == len(prod_hrefs_lst) == len(prod_img_url_lst)):
         print("Error: Las listas no tienen el mismo número de elementos")
         return []
     # print(len(prod_ean))
@@ -134,8 +196,16 @@ def scrap_product_details(url, cat):
     # print(len(prod_name_lst))
     # print(len(prod_price_lst_formated))
     # print(len(prod_rtr_id_art_lst))
-    return list(zip(prod_cat_lst, prod_rtr_id_art_lst, prod_name_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst))
+    return list(zip(prod_cat_lst, prod_rtr_id_art_lst, prod_name_final_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst))
 
+
+
+
+# url_child = 'https://www.rtrvalladolid.es/117-coches-crawler?page=1'
+# for i in scrap_product_details(url_child, 'Coches'):
+#     print (i[2])
+
+   
 # Comprobación de duplicidad de precios en el Scrapeo
 def check_precios_duplicados(products_details_scraped):
     id_unicos = []
@@ -172,6 +242,7 @@ def check_precios_duplicados(products_details_scraped):
 def scrap_rtr_crawler():
     product_details_scrapped = []
     for cat, cat_url, _ in request_categorias_and_main_urls():
+        print("")
         print('Scraping :', cat)
         for child_url in find_child_urls(cat_url):
             for product_details in scrap_product_details(child_url, cat):

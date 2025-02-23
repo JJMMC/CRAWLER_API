@@ -8,5 +8,5 @@
 **/scrap_url_old.py
 **/scrap_url_selenium.py
 **/scrap_url_selenium2.py
-
-
+**/recover_db2.py
+**/database/rtr_crawler_dbCompleta.db
