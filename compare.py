@@ -61,7 +61,7 @@ def main():
     verificar_todos_precios(rtr_id_list)
     
 	
-
+main()
 
 
 

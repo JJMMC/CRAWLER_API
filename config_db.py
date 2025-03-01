@@ -1,11 +1,14 @@
 import sqlite3 as sql
 from scrap_url import scrap_rtr_crawler, request_categorias_and_main_urls, find_child_urls
 import time
-from kkp2 import scraped_list
+
 
 path = "database/rtr_crawler.db"
 
-####### Funciones simples
+#### Probablemente desaparezca el script por SQLAlchemy
+
+####### Funciones simples #######
+
 # Crea la base de Datos y las tablas
 def create_tables (path = "database/rtr_crawler.db"):
     with sql.connect(path) as connection:
@@ -77,6 +80,8 @@ def agregar_precio(rtr_id, precio, path = "database/rtr_crawler.db"):
         connection.commit()
 
 
+
+
 #### Funciones de Comprobación  ####
 
 # Check if rtr_id in tabla articulos
@@ -122,6 +127,8 @@ def check_double_data_in_db():
         return list(duplicados)
 
 
+
+
 #### Funciones Complejas  ####
 
 # Actualiza la tabla de artículos
@@ -144,9 +151,6 @@ def update_tabla_precios():
 
 
 
-#create_tables()
-#update_tabla_articulos()
-#update_tabla_precios()
 
 
 
