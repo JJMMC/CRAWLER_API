@@ -29,7 +29,6 @@ class Articulo(Base):
     
     # Relación con historial_precios
     historial: Mapped[list["HistorialPrecio"]] = relationship(back_populates="articulo")
-
     
 # Definir la tabla de historial de precios
 class HistorialPrecio(Base):
@@ -38,7 +37,7 @@ class HistorialPrecio(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rtr_id: Mapped[int] = mapped_column(Integer, ForeignKey("articulos.rtr_id"), nullable=False)
     precio: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)  # 10 dígitos con 2 decimales
-    fecha: Mapped[str] = mapped_column(Date, default=func.current_date())
+    fecha: Mapped[str] = mapped_column(Date, nullable=False)
     
     # Relación con Articulos
     articulo: Mapped["Articulo"] = relationship(back_populates="historial")
@@ -46,17 +45,7 @@ class HistorialPrecio(Base):
 # Crear todas las tablas en la base de datos
 #Base.metadata.create_all(engine)   
 
-#Ejemplo de artículos a añadir:
-#Articulos:
-'''
-art1 = Articulos(rtr_id=47, categoria='Coches', nombre='Coche 1 TRX4', ean=3455432, art_url='www.ffrr.ggf', img_url='www.ereff.img' )
-prec1 = HistorialPrecio(rtr_id=47, precio=12.34)
 
-session.add(art1)
-session.add(prec1)
-session.flush()
-session.commit()
-'''
 
 
 

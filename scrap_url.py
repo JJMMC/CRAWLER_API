@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
 import re
+from datetime import datetime
 
 discipline_url = 'https://www.rtrvalladolid.es/87-crawler'
 
@@ -16,6 +17,7 @@ def soup_generator(url):
         print(f"Error fetching {url}: {e}")
         return None
 
+# Función para obtener las CAT y CAT_URLS
 def request_categorias_and_main_urls(url="https://www.rtrvalladolid.es/87-crawler"):
     soup = soup_generator(url)
     if not soup:
@@ -23,7 +25,7 @@ def request_categorias_and_main_urls(url="https://www.rtrvalladolid.es/87-crawle
     soup_categorias = soup.find("ul", class_="category-sub-menu").find_all("a")
     los_submenus = soup.find("ul", class_="category-sub-menu").find_all("a", class_="category-sub-link")
     soup_categorias = [url for url in soup_categorias if url not in los_submenus]
-    categorias = [i.string for i in soup_categorias]
+    categorias = [i.string.strip() for i in soup_categorias]
     categorias_urls = [i.get("href") for i in soup_categorias]
     for categoria, url in zip(categorias, categorias_urls):
         yield categoria, url
@@ -151,12 +153,16 @@ def scrap_product_details(url, cat):
     # Genereamos una lista con la Categoria de la URL_CHILD
     prod_cat_lst = [cat] * len(prod_price_lst)
 
+    # Generamos Fecha de obtención de datos
+    fecha = datetime.now().date()
+    prod_fecha_lst = [fecha] * len(prod_price_lst)
+
     # Asegurémonos de que todas las listas tienen el mismo número de elementos
-    if not (len(prod_cat_lst) == len(prod_rtr_id_art_lst) == len(prod_name_final_lst) == len(prod_price_lst) == len(prod_ean) == len(prod_hrefs_lst) == len(prod_img_url_lst)):
+    if not (len(prod_fecha_lst) == len(prod_cat_lst) == len(prod_rtr_id_art_lst) == len(prod_name_final_lst) == len(prod_price_lst) == len(prod_ean) == len(prod_hrefs_lst) == len(prod_img_url_lst)):
         print("Error: Las listas no tienen el mismo número de elementos")
         return []
-    
-    return list(zip(prod_cat_lst, prod_rtr_id_art_lst, prod_name_final_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst))
+
+    return list(zip(prod_cat_lst, prod_rtr_id_art_lst, prod_name_final_lst, prod_price_lst, prod_ean, prod_hrefs_lst, prod_img_url_lst, prod_fecha_lst))
 
 # Comprobación de duplicidad de precios en el Scrapeo
 def check_precios_duplicados(products_details_scraped):
@@ -166,7 +172,7 @@ def check_precios_duplicados(products_details_scraped):
 
     #Localizamos los duplicados
     for product in products_details_scraped:
-        cat_scr, rtr_id, name, price, ean, art_url, img_url = product
+        cat_scr, rtr_id, name, price, ean, art_url, img_url, fecha = product
         if rtr_id not in id_unicos:
             print('No esta en la lista de comprobados')
             id_unicos.append(rtr_id)
@@ -193,7 +199,7 @@ def check_precios_duplicados(products_details_scraped):
 # - Main - Scrap all info from all childs from all categories.
 def scrap_rtr_crawler():
     product_details_scrapped = []
-    for cat, cat_url in request_categorias_and_main_urls():
+    for cat, cat_url in request_categorias_and_main_urls():#ojo
         print("")
         print('Scraping :', cat)
         for child_url in find_child_urls(cat_url):
@@ -201,4 +207,17 @@ def scrap_rtr_crawler():
                 product_details_scrapped.append(product_details)
 
     return check_precios_duplicados(product_details_scrapped)
+
+def scrap_rtr_crawler_by_cat(given_cat):
+    product_details_scrapped = []
+    for cat, cat_url in request_categorias_and_main_urls():
+        if cat == given_cat:
+            print("")
+            print('Scraping :', cat)
+            for child_url in find_child_urls(cat_url):
+                for product_details in scrap_product_details(child_url, cat):
+                    product_details_scrapped.append(product_details)
+
+    return check_precios_duplicados(product_details_scrapped)
+
 
